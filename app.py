@@ -16,21 +16,26 @@ if 'chat_data' not in st.session_state:
     st.session_state.chat_data = []
 if 'chat_mode' not in st.session_state:
     st.session_state.chat_mode = False
+if '_advance_chat' not in st.session_state:
+    st.session_state._advance_chat = False
+if '_pending_answer' not in st.session_state:
+    st.session_state._pending_answer = None
 
 # Title and toggle
 st.title("🩺 Diabetes Risk Prediction App")
 st.markdown("This app predicts diabetes risk using a machine learning model.")
 st.session_state.chat_mode = st.toggle("💬 Switch to Chatbot Mode", value=st.session_state.chat_mode)
 
+# ----- Classic Input Mode -----
 if not st.session_state.chat_mode:
-    # -------- Classic Sidebar Input Mode --------
+
     st.sidebar.header("Input Health Details")
 
     def user_input_features():
         st.sidebar.subheader("🩺 Blood Pressure & Cholesterol")
 
-        # High Blood Pressure Input
-        bp_input_method = st.sidebar.radio("How would you like to enter High Blood Pressure info?", 
+        # High Blood Pressure
+        bp_input_method = st.sidebar.radio("How would you like to enter High Blood Pressure info?",
                                            ["Yes/No", "Numeric (e.g., 120)"], key="bp_method")
         if bp_input_method == "Yes/No":
             HighBP = st.sidebar.selectbox("High Blood Pressure", [0, 1], format_func=lambda x: "Yes" if x else "No", key="bp_yesno")
@@ -38,8 +43,8 @@ if not st.session_state.chat_mode:
             systolic = st.sidebar.slider("Systolic Pressure (mm Hg)", 80, 200, 120)
             HighBP = 1 if systolic >= 130 else 0
 
-        # High Cholesterol Input
-        chol_input_method = st.sidebar.radio("How would you like to enter High Cholesterol info?", 
+        # High Cholesterol
+        chol_input_method = st.sidebar.radio("How would you like to enter High Cholesterol info?",
                                              ["Yes/No", "Numeric (e.g., 210)"], key="chol_method")
         if chol_input_method == "Yes/No":
             HighChol = st.sidebar.selectbox("High Cholesterol", [0, 1], format_func=lambda x: "Yes" if x else "No", key="chol_yesno")
@@ -71,8 +76,8 @@ if not st.session_state.chat_mode:
         else:
             st.success(f"✅ Low risk of diabetes.\nProbability: {prob:.2f}%")
 
+# ----- Chatbot Mode -----
 else:
-    # -------- Chatbot Mode --------
     questions = [
         "Do you have high blood pressure?",
         "Do you have high cholesterol?",
@@ -92,12 +97,22 @@ else:
     if st.button("🔄 Start Over"):
         st.session_state.chat_stage = 0
         st.session_state.chat_data = []
+        st.session_state._advance_chat = False
+        st.session_state._pending_answer = None
         st.experimental_rerun()
 
     # Show chat history
     for i in range(st.session_state.chat_stage):
         st.chat_message("assistant").write(questions[i])
         st.chat_message("user").write(st.session_state.chat_data[i])
+
+    # Process pending answer
+    if st.session_state.get("_advance_chat", False):
+        st.session_state.chat_data.append(str(st.session_state._pending_answer).strip().lower())
+        st.session_state.chat_stage += 1
+        st.session_state._advance_chat = False
+        st.session_state._pending_answer = None
+        st.experimental_rerun()
 
     if st.session_state.chat_stage < len(questions):
         q = questions[st.session_state.chat_stage]
@@ -106,12 +121,10 @@ else:
             st.write(q)
 
         def record_response(answer):
-            st.session_state.chat_data.append(str(answer).strip().lower())
-            st.session_state.chat_stage += 1
-            st.experimental_rerun()
+            st.session_state._pending_answer = answer
+            st.session_state._advance_chat = True
 
-        # Input options based on question type
-        if st.session_state.chat_stage in [0, 1, 3, 4, 5, 9]:  # Yes/No questions
+        if st.session_state.chat_stage in [0, 1, 3, 4, 5, 9]:  # Yes/No
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Yes"):
@@ -130,7 +143,7 @@ else:
             if st.button("Submit"):
                 record_response(gen)
 
-        elif st.session_state.chat_stage in [7, 8]:  # Mental/Physical Health Days
+        elif st.session_state.chat_stage in [7, 8]:  # Mental/Physical Health
             days = st.slider("Number of days (0–30):", 0, 30, 5)
             if st.button("Submit"):
                 record_response(days)
@@ -145,7 +158,7 @@ else:
             if st.button("Submit"):
                 record_response(inc)
 
-    # After all responses
+    # Final prediction
     if st.session_state.chat_stage == len(questions):
         def parse_input(idx, value):
             yes_vals = ['yes', '1', 'y', 'yeah', 'yep']
