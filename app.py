@@ -16,8 +16,23 @@ st.markdown("This app uses a machine learning model to predict the likelihood of
 st.sidebar.header("Input Health Details")
 
 def user_input_features():
-    HighBP = st.sidebar.selectbox("High Blood Pressure", [0, 1], format_func=lambda x: "Yes" if x else "No")
-    HighChol = st.sidebar.selectbox("High Cholesterol", [0, 1], format_func=lambda x: "Yes" if x else "No")
+    st.sidebar.subheader("🔹 High Blood Pressure")
+    bp_input_mode = st.sidebar.radio("Input Method for BP", ["Yes/No", "Numeric"], key="bp_mode")
+    if bp_input_mode == "Yes/No":
+        HighBP = st.sidebar.selectbox("High Blood Pressure", [0, 1], format_func=lambda x: "Yes" if x else "No")
+    else:
+        systolic = st.sidebar.number_input("Systolic (mm Hg)", min_value=50, max_value=250, value=120)
+        diastolic = st.sidebar.number_input("Diastolic (mm Hg)", min_value=30, max_value=150, value=80)
+        HighBP = 1 if systolic >= 130 or diastolic >= 80 else 0
+
+    st.sidebar.subheader("🔹 High Cholesterol")
+    chol_input_mode = st.sidebar.radio("Input Method for Cholesterol", ["Yes/No", "Numeric"], key="chol_mode")
+    if chol_input_mode == "Yes/No":
+        HighChol = st.sidebar.selectbox("High Cholesterol", [0, 1], format_func=lambda x: "Yes" if x else "No")
+    else:
+        cholesterol_level = st.sidebar.number_input("Total Cholesterol (mg/dL)", min_value=100, max_value=400, value=180)
+        HighChol = 1 if cholesterol_level >= 200 else 0
+
     BMI = st.sidebar.slider("Body Mass Index (BMI)", 10.0, 60.0, 25.0)
     Stroke = st.sidebar.selectbox("Ever had a Stroke", [0, 1], format_func=lambda x: "Yes" if x else "No")
     HeartDiseaseorAttack = st.sidebar.selectbox("Heart Disease or Heart Attack", [0, 1], format_func=lambda x: "Yes" if x else "No")
@@ -40,10 +55,10 @@ if st.button("Predict Diabetes Risk"):
     prob = model.predict_proba(input_data)[0][1] * 100
 
     if prediction == 1:
-        st.error(f" High risk of diabetes detected.\nProbability: {prob:.2f}%")
+        st.error(f"⚠️ High risk of diabetes detected.\nProbability: {prob:.2f}%")
     else:
-        st.success(f"Low risk of diabetes.\nProbability: {prob:.2f}%")
+        st.success(f"✅ Low risk of diabetes.\nProbability: {prob:.2f}%")
 
 # Footer
 st.markdown("---")
-st.markdown("**Model**: XGBoost (Tuned) | Trained on BRFSS 2015 Dataset")
+st.markdown("📊 **Model**: Tuned XGBoost | 🔧 Trained on BRFSS 2015 Dataset")
