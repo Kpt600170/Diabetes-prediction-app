@@ -3,7 +3,7 @@ import numpy as np
 import joblib
 
 # Load the trained XGBoost model
-model = joblib.load("diabetes_model.pkl")
+model = joblib.load("best_model.pkl")
 
 # Set page config
 st.set_page_config(page_title="Diabetes Risk Predictor", layout="centered")
