@@ -25,9 +25,29 @@ st.session_state.chat_mode = st.toggle("💬 Switch to Chatbot Mode", value=st.s
 if not st.session_state.chat_mode:
     # -------- Classic Sidebar Input Mode --------
     st.sidebar.header("Input Health Details")
+
     def user_input_features():
-        HighBP = st.sidebar.selectbox("High Blood Pressure", [0, 1], format_func=lambda x: "Yes" if x else "No")
-        HighChol = st.sidebar.selectbox("High Cholesterol", [0, 1], format_func=lambda x: "Yes" if x else "No")
+        st.sidebar.subheader("🩺 Blood Pressure & Cholesterol")
+
+        # High Blood Pressure Input
+        bp_input_method = st.sidebar.radio("How would you like to enter High Blood Pressure info?", 
+                                           ["Yes/No", "Numeric (e.g., 120)"], key="bp_method")
+        if bp_input_method == "Yes/No":
+            HighBP = st.sidebar.selectbox("High Blood Pressure", [0, 1], format_func=lambda x: "Yes" if x else "No", key="bp_yesno")
+        else:
+            systolic = st.sidebar.slider("Systolic Pressure (mm Hg)", 80, 200, 120)
+            HighBP = 1 if systolic >= 130 else 0
+
+        # High Cholesterol Input
+        chol_input_method = st.sidebar.radio("How would you like to enter High Cholesterol info?", 
+                                             ["Yes/No", "Numeric (e.g., 210)"], key="chol_method")
+        if chol_input_method == "Yes/No":
+            HighChol = st.sidebar.selectbox("High Cholesterol", [0, 1], format_func=lambda x: "Yes" if x else "No", key="chol_yesno")
+        else:
+            cholesterol = st.sidebar.slider("Cholesterol Level (mg/dL)", 100, 400, 200)
+            HighChol = 1 if cholesterol >= 240 else 0
+
+        # Rest of the inputs
         BMI = st.sidebar.slider("BMI", 10.0, 60.0, 25.0)
         Stroke = st.sidebar.selectbox("Ever had a Stroke", [0, 1], format_func=lambda x: "Yes" if x else "No")
         HeartDiseaseorAttack = st.sidebar.selectbox("Heart Disease/Attack", [0, 1], format_func=lambda x: "Yes" if x else "No")
@@ -47,9 +67,9 @@ if not st.session_state.chat_mode:
         prediction = model.predict(input_data)[0]
         prob = model.predict_proba(input_data)[0][1] * 100
         if prediction == 1:
-            st.error(f"High risk of diabetes detected.\nProbability: {prob:.2f}%")
+            st.error(f"⚠️ High risk of diabetes detected.\nProbability: {prob:.2f}%")
         else:
-            st.success(f"Low risk of diabetes.\nProbability: {prob:.2f}%")
+            st.success(f"✅ Low risk of diabetes.\nProbability: {prob:.2f}%")
 
 else:
     # -------- Chatbot Mode --------
