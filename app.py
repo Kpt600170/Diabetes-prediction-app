@@ -84,16 +84,38 @@ else:
             st.chat_message("user").write(user_input)
             st.session_state.chat_data.append(user_input.strip().lower())
 
-            # Convert input to numeric for each step
+            # Improved input parser
             def parse_input(idx, value):
+                value = value.strip().lower()
+                yes_vals = ['yes', '1', 'y', 'yeah', 'yep']
+                no_vals = ['no', '0', 'n', 'nope']
+
                 if idx in [0, 1, 3, 4, 5, 9]:
-                    return 1 if value in ['yes', '1'] else 0
-                elif idx == 2:
-                    return float(value)
-                elif idx in [6, 10, 11]:
-                    return int(value)
-                elif idx in [7, 8]:
-                    return min(max(int(value), 0), 30)
+                    if value in yes_vals:
+                        return 1
+                    elif value in no_vals:
+                        return 0
+                    else:
+                        return 0  # default fallback
+
+                elif idx == 2:  # BMI
+                    try:
+                        return float(value)
+                    except:
+                        return 25.0
+
+                elif idx in [6, 10, 11]:  # GenHlth, Age, Income
+                    try:
+                        return int(value)
+                    except:
+                        return 3
+
+                elif idx in [7, 8]:  # MentHlth, PhysHlth
+                    try:
+                        return min(max(int(value), 0), 30)
+                    except:
+                        return 5
+
                 return 0
 
             if len(st.session_state.chat_data) == st.session_state.chat_stage + 1:
