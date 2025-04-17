@@ -54,80 +54,97 @@ if not st.session_state.chat_mode:
 else:
     # -------- Chatbot Mode --------
     questions = [
-        "Do you have high blood pressure? (yes/no)",
-        "Do you have high cholesterol? (yes/no)",
+        "Do you have high blood pressure?",
+        "Do you have high cholesterol?",
         "What is your BMI? (e.g., 23.5)",
-        "Have you ever had a stroke? (yes/no)",
-        "Do you have heart disease or had a heart attack? (yes/no)",
-        "Have you done any physical activity in the past 30 days? (yes/no)",
-        "How would you rate your general health? (1=Excellent to 5=Poor)",
+        "Have you ever had a stroke?",
+        "Do you have heart disease or had a heart attack?",
+        "Have you done any physical activity in the past 30 days?",
+        "Rate your general health (1=Excellent to 5=Poor):",
         "In the past 30 days, how many days was your mental health not good? (0–30)",
         "In the past 30 days, how many days was your physical health not good? (0–30)",
-        "Do you have difficulty walking or climbing stairs? (yes/no)",
+        "Do you have difficulty walking or climbing stairs?",
         "Select your age category (1–13):",
         "Select your income category (1–8):"
     ]
 
-    # Show previous chat messages
+    # Reset Chat
+    if st.button("🔄 Start Over"):
+        st.session_state.chat_stage = 0
+        st.session_state.chat_data = []
+        st.experimental_rerun()
+
+    # Show chat history
     for i in range(st.session_state.chat_stage):
         st.chat_message("assistant").write(questions[i])
         st.chat_message("user").write(st.session_state.chat_data[i])
 
-    # Ask current question
     if st.session_state.chat_stage < len(questions):
-        question = questions[st.session_state.chat_stage]
+        q = questions[st.session_state.chat_stage]
+
         with st.chat_message("assistant"):
-            st.write(question)
+            st.write(q)
 
-        user_input = st.chat_input("Your answer:")
-        if user_input:
-            st.chat_message("user").write(user_input)
-            st.session_state.chat_data.append(user_input.strip().lower())
+        def record_response(answer):
+            st.session_state.chat_data.append(str(answer).strip().lower())
+            st.session_state.chat_stage += 1
+            st.experimental_rerun()
 
-            # Improved input parser
-            def parse_input(idx, value):
-                value = value.strip().lower()
-                yes_vals = ['yes', '1', 'y', 'yeah', 'yep']
-                no_vals = ['no', '0', 'n', 'nope']
+        # Input options based on question type
+        if st.session_state.chat_stage in [0, 1, 3, 4, 5, 9]:  # Yes/No questions
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Yes"):
+                    record_response("yes")
+            with col2:
+                if st.button("No"):
+                    record_response("no")
 
-                if idx in [0, 1, 3, 4, 5, 9]:
-                    if value in yes_vals:
-                        return 1
-                    elif value in no_vals:
-                        return 0
-                    else:
-                        return 0  # default fallback
+        elif st.session_state.chat_stage == 2:  # BMI
+            bmi = st.slider("Select your BMI:", 10.0, 60.0, 25.0)
+            if st.button("Submit"):
+                record_response(bmi)
 
-                elif idx == 2:  # BMI
-                    try:
-                        return float(value)
-                    except:
-                        return 25.0
+        elif st.session_state.chat_stage == 6:  # General Health
+            gen = st.selectbox("Rate your general health:", list(range(1, 6)))
+            if st.button("Submit"):
+                record_response(gen)
 
-                elif idx in [6, 10, 11]:  # GenHlth, Age, Income
-                    try:
-                        return int(value)
-                    except:
-                        return 3
+        elif st.session_state.chat_stage in [7, 8]:  # Mental/Physical Health Days
+            days = st.slider("Number of days (0–30):", 0, 30, 5)
+            if st.button("Submit"):
+                record_response(days)
 
-                elif idx in [7, 8]:  # MentHlth, PhysHlth
-                    try:
-                        return min(max(int(value), 0), 30)
-                    except:
-                        return 5
+        elif st.session_state.chat_stage == 10:  # Age
+            age = st.selectbox("Select your age category (1–13):", list(range(1, 14)))
+            if st.button("Submit"):
+                record_response(age)
 
-                return 0
+        elif st.session_state.chat_stage == 11:  # Income
+            inc = st.selectbox("Select your income category (1–8):", list(range(1, 9)))
+            if st.button("Submit"):
+                record_response(inc)
 
-            if len(st.session_state.chat_data) == st.session_state.chat_stage + 1:
-                st.session_state.chat_stage += 1
+    # After all responses
+    if st.session_state.chat_stage == len(questions):
+        def parse_input(idx, value):
+            yes_vals = ['yes', '1', 'y', 'yeah', 'yep']
+            if idx in [0, 1, 3, 4, 5, 9]:
+                return 1 if value in yes_vals else 0
+            elif idx == 2:
+                return float(value)
+            elif idx in [6, 10, 11]:
+                return int(value)
+            elif idx in [7, 8]:
+                return min(max(int(value), 0), 30)
+            return 0
 
-            # When all answers are collected
-            if st.session_state.chat_stage == len(questions):
-                final_input = np.array([[parse_input(i, ans) for i, ans in enumerate(st.session_state.chat_data)]])
-                prediction = model.predict(final_input)[0]
-                prob = model.predict_proba(final_input)[0][1] * 100
-                with st.chat_message("assistant"):
-                    if prediction == 1:
-                        st.error(f"⚠️ High risk of diabetes detected.\nProbability: {prob:.2f}%")
-                    else:
-                        st.success(f"✅ Low risk of diabetes.\nProbability: {prob:.2f}%")
+        final_input = np.array([[parse_input(i, val) for i, val in enumerate(st.session_state.chat_data)]])
+        prediction = model.predict(final_input)[0]
+        prob = model.predict_proba(final_input)[0][1] * 100
+
+        with st.chat_message("assistant"):
+            if prediction == 1:
+                st.error(f"⚠️ High risk of diabetes detected.\nProbability: {prob:.2f}%")
+            else:
+                st.success(f"✅ Low risk of diabetes.\nProbability: {prob:.2f}%")
