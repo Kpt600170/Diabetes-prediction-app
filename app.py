@@ -33,7 +33,6 @@ if not st.session_state.chat_mode:
     def user_input_features():
         st.sidebar.subheader("🩺 Blood Pressure & Cholesterol")
 
-        # High Blood Pressure Input
         bp_input_method = st.sidebar.radio("How would you like to enter High Blood Pressure info?",
                                            ["Yes/No", "Numeric (e.g., 120)"], key="bp_method")
         if bp_input_method == "Yes/No":
@@ -43,7 +42,6 @@ if not st.session_state.chat_mode:
             systolic = st.sidebar.slider("Systolic Pressure (mm Hg)", 80, 200, 120)
             HighBP = 1 if systolic >= 130 else 0
 
-        # High Cholesterol Input
         chol_input_method = st.sidebar.radio("How would you like to enter High Cholesterol info?",
                                              ["Yes/No", "Numeric (e.g., 210)"], key="chol_method")
         if chol_input_method == "Yes/No":
@@ -79,8 +77,8 @@ if not st.session_state.chat_mode:
 # -------- Chatbot Mode --------
 else:
     questions = [
-        "Do you have high blood pressure?",
-        "Do you have high cholesterol?",
+        "Do you have high blood pressure or enter your systolic value (e.g., 135)?",
+        "Do you have high cholesterol or enter your cholesterol level (e.g., 250)?",
         "What is your BMI? (e.g., 23.5)",
         "Have you ever had a stroke?",
         "Do you have heart disease or had a heart attack?",
@@ -93,7 +91,6 @@ else:
         "Select your income category (1–8):"
     ]
 
-    # Reset Chat
     if st.button("🔄 Start Over"):
         st.session_state.chat_stage = 0
         st.session_state.chat_data = []
@@ -101,7 +98,6 @@ else:
         st.session_state._pending_answer = None
         st.rerun()
 
-    # Handle state updates
     if st.session_state._advance_chat:
         st.session_state.chat_data.append(str(st.session_state._pending_answer).strip().lower())
         st.session_state.chat_stage += 1
@@ -109,7 +105,6 @@ else:
         st.session_state._pending_answer = None
         st.rerun()
 
-    # Show chat history
     for i in range(st.session_state.chat_stage):
         st.chat_message("assistant").write(questions[i])
         st.chat_message("user").write(st.session_state.chat_data[i])
@@ -118,14 +113,25 @@ else:
         st.session_state._pending_answer = answer
         st.session_state._advance_chat = True
 
-    # Ask current question
     if st.session_state.chat_stage < len(questions):
-        q = questions[st.session_state.chat_stage]
+        idx = st.session_state.chat_stage
+        q = questions[idx]
         with st.chat_message("assistant"):
             st.write(q)
 
-        idx = st.session_state.chat_stage
-        if idx in [0, 1, 3, 4, 5, 9]:  # Yes/No questions
+        if idx in [0, 1]:  # HighBP, HighChol: Yes/No or numeric
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                if st.button("Yes"):
+                    record_response("yes")
+                if st.button("No"):
+                    record_response("no")
+            with col2:
+                val = st.text_input("Or enter a numeric value:")
+                if val and st.button("Submit Value"):
+                    record_response(val)
+
+        elif idx in [3, 4, 5, 9]:  # Yes/No only
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Yes"):
@@ -133,39 +139,61 @@ else:
             with col2:
                 if st.button("No"):
                     record_response("no")
-        elif idx == 2:  # BMI
+
+        elif idx == 2:
             bmi = st.slider("Select your BMI:", 10.0, 60.0, 25.0)
             if st.button("Submit"):
                 record_response(bmi)
-        elif idx == 6:  # General Health
+
+        elif idx == 6:
             gen = st.selectbox("Rate your general health:", list(range(1, 6)))
             if st.button("Submit"):
                 record_response(gen)
-        elif idx in [7, 8]:  # Mental/Physical Health Days
+
+        elif idx in [7, 8]:
             days = st.slider("Number of days (0–30):", 0, 30, 5)
             if st.button("Submit"):
                 record_response(days)
-        elif idx == 10:  # Age
+
+        elif idx == 10:
             age = st.selectbox("Select your age category (1–13):", list(range(1, 14)))
             if st.button("Submit"):
                 record_response(age)
-        elif idx == 11:  # Income
+
+        elif idx == 11:
             inc = st.selectbox("Select your income category (1–8):", list(range(1, 9)))
             if st.button("Submit"):
                 record_response(inc)
 
-    # Final Prediction
     if st.session_state.chat_stage == len(questions):
-        def parse_input(idx, value):
+        def parse_input(idx, val):
+            val = val.strip().lower()
             yes_vals = ['yes', '1', 'y', 'yeah', 'yep']
-            if idx in [0, 1, 3, 4, 5, 9]:
-                return 1 if value in yes_vals else 0
+
+            if idx == 0:  # HighBP: yes/no or systolic
+                try:
+                    return 1 if float(val) >= 130 else 0
+                except:
+                    return 1 if val in yes_vals else 0
+
+            elif idx == 1:  # HighChol: yes/no or numeric
+                try:
+                    return 1 if float(val) >= 240 else 0
+                except:
+                    return 1 if val in yes_vals else 0
+
             elif idx == 2:
-                return float(value)
+                return float(val)
+
+            elif idx in [3, 4, 5, 9]:
+                return 1 if val in yes_vals else 0
+
             elif idx in [6, 10, 11]:
-                return int(value)
+                return int(val)
+
             elif idx in [7, 8]:
-                return min(max(int(value), 0), 30)
+                return min(max(int(val), 0), 30)
+
             return 0
 
         final_input = np.array([[parse_input(i, val) for i, val in enumerate(st.session_state.chat_data)]])
